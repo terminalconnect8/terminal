@@ -1,0 +1,9 @@
+{
+  "name": "service-terminal-connector",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "formidable": "^3.5.1",
+    "nodemailer": "^6.9.2"
+  }
+}
